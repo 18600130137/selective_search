@@ -1,8 +1,8 @@
-#第一步：程序引用包
 import cv2
 import selectivesearch
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import  numpy as  np
 
 #step1
 image2="images/test2.png"
@@ -59,11 +59,53 @@ for i in candidates:
 len=len(num_array)
 #二次过滤后剩余10个窗
 print('len====',len)
-#3)对过滤完的窗口进行展示
+print('raw num_array===',num_array)
+
+
+
+#第三步：搜索完后的窗口，上下是有序的 左右是无序的，所以上下分别进行排序 并合并
+L1=num_array[0:len//2]
+L2=num_array[len//2:]
+L1.sort(key=lambda  x:x[0])  ##上半部分排序
+print ('sorted L1==',L1)
+L2.sort(key=lambda x:x[0])   ##下半部分排序
+print('sorted L2',L2)
+L1.extend(L2)
+print ("最终筛选后的窗口是:",L1)
+#第五步：提取窗口图片后转化为28*28的标准图
+Width=28
+Height=28
+#横向图片数组
+img_sample = np.zeros((len, Width*Height))
+i = 0
+for rect in L1:
+    x, y, w, h = rect
+    #大图中截图窗口图片
+    img_cut = img[y :y+h, x:x +w,:]
+    #截取后的小图添加padding 生成方形图
+    if w > h:
+        real_size=w
+    else:
+        real_size=h
+    top_padding=(real_size - h) // 2
+    left_padding=(real_size - w)//2
+    #加padding方法
+    img_cut = cv2.copyMakeBorder(img_cut,top_padding,top_padding,left_padding,left_padding,borderType=cv2.BORDER_REPLICATE)
+    #把方形图 压缩成28*28的图
+    img_resize = cv2.resize(img_cut, (Width, Height), interpolation=cv2.INTER_NEAREST)
+    #压缩后的图转化成灰度图
+    gray = cv2.cvtColor(img_resize, cv2.COLOR_BGR2GRAY)
+    #生成的小图保存到本地
+    cv2.imwrite('images/img_'+str(i)+'.png',gray)
+    #生成的小图展平 放到img_sample里
+    img_sample[i, :] = gray.ravel()
+    i += 1
+#第六步：把转换后的数据用长图来显示
+img_s = np.zeros((Width, Height * img_sample.shape[0]))
+print('img_sample.shape===',img_sample.shape)
+for i in range(img_sample.shape[0]):
+    img_s[:, i * Width:Height * (i + 1)] =img_sample[i, :].reshape(Width, Height)
 fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(6, 6))
-ax.imshow(img)
-for x, y, w, h in num_array:
-    rect = mpatches.Rectangle(
-    (x, y), w, h, fill=False, edgecolor='red', linewidth=1)
-    ax.add_patch(rect)
+ax.imshow(img_s, cmap='gray')
+plt.savefig("images/number.jpg", bbox_inch="tight")
 plt.show()
